@@ -7,7 +7,7 @@ Supplementary data for the readability and the structural accuracy analysis of t
 
 - The **scripts** folder contains the following scripts:
     - **get_ontologies.sh**: Bash script to download the latest version of the OBO Foundry ontologies into the *data/ontologies* folder.
-    - **metrics.jar**: Command line based java application to obtain the readability and the structural accuracy metrics for a set of ontologies.
+    - **metrics.jar**: Command line based java application to obtain the readability and the structural accuracy metrics for a set of ontologies. The source code is available [here](https://github.com/fanavarro/ontology-metrics).
     - **getMetricsMembers.sh**: Bash script to obtain the metrics for the OBO Foundry member ontologies. This script read the folder */data/ontologies/member_ontologies* and put the results in */results/members_results*.
     - **getMetricsMembers.sh**: Bash script to obtain the metrics for the OBO Foundry candidate ontologies. This script read the folder */data/ontologies/candidate_ontologies* and put the results in */results/candidates_results*.
     - **data_analysis.R**: R script intended to be open in an interactive rstudio session. It contains the R commands used to perform the statistical and clusering analysis, including commented lines that help to follow the script.
