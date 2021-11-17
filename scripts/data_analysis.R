@@ -13,36 +13,131 @@ library(outForest)
 library(corrplot)
 library(RColorBrewer)
 library(rstudioapi)
+library(cluster)
+library(factoextra)
 
 ### FUNCTIONS ###
+# Function get_dist, as it is used by pvclust.
+get_dist <- function(data, method, use.cor="pairwise.complete.obs"){
+  if(is.function(method)) {
+    # Use custom distance function
+    distance <- method(data)
+  } else {
+    distance <- dist.pvclust(data, method=method, use.cor=use.cor)
+  }
+}
+
+dist.pvclust <- function(x, method="euclidean", use.cor="pairwise.complete.obs")
+{
+  if(!is.na(pmatch(method,"correlation"))){
+    res <- as.dist(1 - cor(x, method="pearson", use=use.cor))
+    attr(res,"method") <- "correlation"
+    return(res)
+  }
+  else if(!is.na(pmatch(method,"abscor"))){
+    res <- as.dist(1 - abs(cor(x,method="pearson",use=use.cor)))
+    attr(res,"method") <- "abscor"
+    return(res)
+  }
+  else if(!is.na(pmatch(method,"uncentered"))){
+    if(sum(is.na(x)) > 0){
+      x <- na.omit(x)
+      warning("Rows including NAs were omitted")
+    }
+    x  <- as.matrix(x)
+    P  <- crossprod(x)
+    qq <- matrix(diag(P),ncol=ncol(P))
+    Q  <- sqrt(crossprod(qq))
+    res <- as.dist(1 - P/Q)
+    attr(res,"method") <- "uncentered"
+    return(res)
+  }
+  else
+    dist(t(x),method)
+}
+# Sort the cluster vector according to the data in the distance matrix.
+sortClusterVector <- function(clusterVector, distanceMatrix){
+  sortedClusterVector = list()
+  names=attr(distanceMatrix, "Labels")
+  for(name in names){ 
+    sortedClusterVector[name] = clusterVector[name]
+  }
+  return(unlist(sortedClusterVector, use.names=TRUE))
+}
+
+# Silhouette calculation. Reveives the results of pvclust
+# and a confidence level to extract clusters supported by the data.
+# Return the silhouette score of the resulting clusters.
+getSilhouette <- function(data, pvclustering, distMethod, conf_level=0.95){
+  aux = pvpick(pvclustering, conf_level)
+  groups = rep(seq_along(aux$clusters), times = sapply(aux$clusters, length))
+  names(groups) = unlist(aux$clusters)
+  distance_matrix = get_dist(as.data.frame(as.matrix(t(data))), method = distMethod)
+  sorted_groups = sortClusterVector(groups, distance_matrix)
+  if (all(!is.na(sorted_groups))){
+    silhouetteInfo = silhouette(sorted_groups, distance_matrix)
+    avgSil = mean(silhouetteInfo[ , 3])
+  } else {
+    avgSil = NA
+  }
+  return (avgSil)
+}
+
+# Min-max normalization
+min_max_normalization <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+
+min_max_normalization_wrap <- function(df) {
+  normalized_df = sapply(df, min_max_normalization)
+  colnames(normalized_df) <- colnames(df)
+  rownames(normalized_df) <- rownames(df)
+  return (normalized_df)
+}
 
 # Creates a figure from 'obj' in bmp and eps format with the size specified
 # by 'w' (width) and 'h' (height). The figure is saved in the specified path.
 exportImage <- function(path, w, h, obj){
+  # Print in the interface
+  plot(obj)
+  
+  # Print in bmp file
   setEPS()
   bmp(paste(path, ".bmp", sep = ""), width = w, height = h)
   plot(obj)
   dev.off()
   
+  # Print in eps file
   setEPS()
   postscript(paste(path, ".eps", sep = ""), width = w, height = h)
   plot(obj)
   dev.off()
 }
 
-# Creates a figure from the dendrogram in 'obj' in bmp and eps format with the size specified
-# by 'w' (width) and 'h' (height). The dendrogram is saved in the specified path.
+# Creates a figure from the dendrogram in 'obj' (pvclust object) in bmp and eps format with the size specified
+# by 'w' (width) and 'h' (height). The dendrogram is saved in the specified path. If silhouette_score is specified,
+# it is included in the plot.
 # Clusters supported by a significance higher than 0.95 are marked.
-exportDendrogram <- function(path, w, h, obj){
+exportDendrogram <- function(path, w, h, obj, silhouette_score = NA){
+  subtitle = paste0('Distance: ', obj$hclust$dist.method, '\nCluster method: ', obj$hclust$method)
+  if(!is.na(silhouette_score)){
+    subtitle = paste0(subtitle, '\nSilhouette score: ', round(silhouette_score, digits=4))
+  }
+  # Print in the interface
+  plot(obj, xlab='', sub=subtitle)
+  pvrect(obj, alpha = 0.95)
+  
+  # Print in bmp file
   setEPS()
   bmp(paste(path, ".bmp", sep = ""), width = w, height = h)
-  plot(obj)
+  plot(obj, xlab='', sub=subtitle)
   pvrect(obj, alpha = 0.95)
   dev.off()
   
+  # Print in eps file
   setEPS()
   postscript(paste(path, ".eps", sep = ""), width = w, height = h)
-  plot(obj)
+  plot(obj, xlab='', sub=subtitle)
   pvrect(obj, alpha = 0.95)
   dev.off()
 }
@@ -58,6 +153,17 @@ cosine_wrap <- function(x) {
 }
 attr(cosine_wrap, 'name') <- 'cosine'
 
+# Calculates the spearman distance
+spearman_distance_wrap <- function(x){
+  # between 0 and 2
+  spearman_distance = cor(x = x, use = 'pairwise.complete.obs',
+                 method = 'spearman')
+  spearman_distance = 1 - spearman_distance
+  spearman_distance = as.dist(spearman_distance)
+  attr(spearman_distance, "method") <- "spearman"
+  return (spearman_distance)
+}
+attr(spearman_distance_wrap, 'name') <- 'spearman'
 
 # Preprocess the data. This function receives the data from the study in long format
 # together with the metrics to take into account.
@@ -66,27 +172,50 @@ attr(cosine_wrap, 'name') <- 'cosine'
 # 3. Remove outliers
 # 4. Remove near zero variables.
 # 5. Return the original data together with the processed data.
-preprocessData <- function(longData, metricsToUse){
+preprocessData <- function(longData, metricsToUse, outliersFile = NA){
   wideData = spread(filter(longData, Metric %in% metricsToUse), Metric, Value)
   row.names(wideData) = tools::file_path_sans_ext(wideData$File)
   x = select(wideData, -File, -Member)
+  if (!is.na(outliersFile)){
+    write.csv(x, file = file.path(dirname(outliersFile),'data0.csv'))
+  }
   x = na.omit(x)
+  if (!is.na(outliersFile)){
+    write.csv(x, file = file.path(dirname(outliersFile),'data1.csv'))
+  }
   print(paste("Removing near zero var columns:", colnames(x)[nearZeroVar(x)]))
   x = select(x, -nearZeroVar(x))
   originalData = data.frame(x)
-  x = scale(x)
+  if (!is.na(outliersFile)){
+    write.csv(x, file = file.path(dirname(outliersFile),'data2.csv'))
+  }
+  #x = scale(x)
+  # Probar esto
+  x = min_max_normalization_wrap(x)
   x = as.data.frame(as.matrix(x))
+  if (!is.na(outliersFile)){
+    write.csv(x, file = file.path(dirname(outliersFile),'data3.csv'))
+  }
   # Outliers removal
   col_names = colnames(x)
   colnames(x) = gsub(" ", "_", colnames(x))
   outliers = outForest(x, replace = "NA", seed = 12345)
   print(paste("Removing outliers:\n", toString(outliers(outliers))))
+  if (!is.na(outliersFile)){
+    write.csv(outliers(outliers), file = outliersFile, sep = ",")
+  }
   #outliers(outliers)
   x = Data(outliers)
   colnames(x) = col_names
   x = drop_na(x)
+  if (!is.na(outliersFile)){
+    write.csv(x, file = file.path(dirname(outliersFile),'data4.csv'))
+  }
   print(paste("Removing near zero var columns after removing outliers:", colnames(x)[nearZeroVar(x)]))
   x = select(x, -nearZeroVar(x))
+  if (!is.na(outliersFile)){
+    write.csv(x, file = file.path(dirname(outliersFile),'data5.csv'))
+  }
   return (list("originalData" = originalData, "preprocessedData" = x))
 }
 
@@ -108,7 +237,8 @@ generateAndEvaluateClusters <- function(longData, metricsToUse, distancesToEval,
     dir.create(file.path(baseFolder))
   }
   
-  preprocess_info = preprocessData(longData, metricsToUse)
+  outliersFile = file.path(baseFolder, 'outliers.csv')
+  preprocess_info = preprocessData(longData, metricsToUse, outliersFile)
   x = preprocess_info$preprocessedData
   originalData = preprocess_info$originalData
   
@@ -131,7 +261,8 @@ generateAndEvaluateClusters <- function(longData, metricsToUse, distancesToEval,
       #evalPlot = paste(getwd(), "/", baseFolder, "/", info, '-eval', sep = "")
       dendrogramPlot = paste(baseFolder, "/", info, sep = "")
       evalPlot = paste(baseFolder, "/", info, '-eval', sep = "")
-      exportDendrogram(dendrogramPlot, w=1400, h=600, clustering)
+      silhouette_score = getSilhouette(x, clustering, distMethod)
+      exportDendrogram(dendrogramPlot, w=1400, h=600, clustering, silhouette_score)
       if(!clusterMetrics){
         aux = pvpick(clustering, alpha=0.95)
         groups = rep(seq_along(aux$clusters), times = sapply(aux$clusters, length))
@@ -221,6 +352,16 @@ compareClusters <- function (groups, df, plotFileOutDir) {
   return (t(summary))
 }
 
+plot_metric_distribution <- function(all, metric_names){
+  data = spread(all, Metric, Value)
+  for (metric_name in metric_names){
+    metric_values = data %>% pull(metric_name) %>% na.exclude()
+    shapiro_p_value = format(shapiro.test(metric_values)$p.value, digits=4)
+    plot(density(metric_values), main = paste(metric_name, 'distribution'))
+    mtext(paste("Shapiro test p-value", shapiro_p_value), side=3)
+  }
+}
+
 
 ### MAIN SCRIPT ###
 # Get data paths
@@ -238,7 +379,7 @@ all$Value = as.numeric(all$Value)
 all$File = as.character(all$File)
 
 ### DESCRIPTIVE ANALYSIS ###
-# Comparison between member and candidate ontologies according to the considered metrics (readability and structural accuracy)
+# Distribution of each metric
 metricsToShow = c("Names per class", 
                   "Synonyms per class", 
                   "Descriptions per class", 
@@ -253,35 +394,50 @@ metricsToShow = c("Names per class",
                   "Descriptions per annotation property",
                   "Systematic naming",
                   "Lexically suggest logically define")
+
+plot_metric_distribution(all, metricsToShow)
+# Comparison between member and candidate ontologies according to the considered metrics (readability and structural accuracy)
 View(compareCandidatesAndMembers(filter(all, Metric %in% metricsToShow)))
 
 # Summary of the readability metrics regarding classes
 summary(spread(all, Metric, Value) %>% select(File, Member, contains('per class')))
+# Standard deviations
+apply((spread(all, Metric, Value) %>% select(contains('per class'))), 2, sd, na.rm=TRUE)
 # Complete data of the readability metrics regarding classes
 View(spread(all, Metric, Value) %>% select(File, Member, contains('per class')))
 
 # Summary of the readability metrics regarding object properties
 summary(spread(all, Metric, Value) %>% select(File, Member, contains('per object property')))
+# Standard deviations
+apply((spread(all, Metric, Value) %>% select(contains('per object property'))), 2, sd, na.rm=TRUE)
 # Complete data of the readability metrics regarding object properties
 View(spread(all, Metric, Value) %>% select(File, Member, contains('per object property')))
 
 # Summary of the readability metrics regarding data properties
 summary(spread(all, Metric, Value) %>% select(File, Member, contains('per data property')))
+# Standard deviations
+apply((spread(all, Metric, Value) %>% select(contains('per data property'))), 2, sd, na.rm=TRUE)
 # Complete data of the readability metrics regarding data properties
 View(spread(all, Metric, Value) %>% select(File, Member, contains('per data property')))
 
 # Summary of the readability metrics regarding annotation properties
 summary(spread(all, Metric, Value) %>% select(File, Member, contains('per annotation property')))
+# Standard deviations
+apply((spread(all, Metric, Value) %>% select(contains('per annotation property'))), 2, sd, na.rm=TRUE)
 # Complete data of the readability metrics regarding annotation properties
 View(spread(all, Metric, Value) %>% select(File, Member, contains('per annotation property')))
 
 # Summary of the systematic naming metric
 summary(spread(all, Metric, Value) %>% select(File, Member, contains('Systematic naming')))
+# Standard deviations
+apply((spread(all, Metric, Value) %>% select(contains('Systematic naming'))), 2, sd, na.rm=TRUE)
 # Complete data of the systematic naming metric
 View(spread(all, Metric, Value) %>% select(File, Member, contains('Systematic naming')))
 
 # Summary of the LSLD metric
 summary(spread(all, Metric, Value) %>% select(File, Member, contains('Lexically suggest logically define')))
+# Standard deviations
+apply((spread(all, Metric, Value) %>% select(contains('Lexically suggest logically define'))), 2, sd, na.rm=TRUE)
 # Complete data of the LSLD metric
 View(spread(all, Metric, Value) %>% select(File, Member, contains('Lexically suggest logically define')))
 
@@ -334,9 +490,10 @@ ggplot(data = x, aes(x=Metric, y=Value)) + geom_boxplot() + stat_compare_means(c
 # Comparison between the structural accuracy metrics (systematic naming and lexically suggest, logically define)
 metricsToShow = c("Systematic naming",
                   "Lexically suggest logically define")
+comparisons = list(c("Systematic naming", "Lexically suggest logically define"))
 x = filter(all, Metric %in% metricsToShow)
 x$Metric = factor(x$Metric, levels=metricsToShow)
-ggplot(data = x, aes(x=Metric, y=Value)) + geom_boxplot() 
+ggplot(data = x, aes(x=Metric, y=Value)) + geom_boxplot() + stat_compare_means(comparisons = comparisons)
 
 
 
@@ -352,17 +509,17 @@ metricsToShow = c("Names per class",
                   "Names per annotation property", 
                   "Synonyms per annotation property", 
                   "Descriptions per annotation property")
-distances = c("euclidean", "correlation", "maximum", "manhattan", "canberra", "minkowski", cosine_wrap)
+distances = c("euclidean", "correlation", "maximum", "manhattan", "canberra", "minkowski", cosine_wrap, spearman_distance_wrap)
 clustMethods = c("ward.D", "single", "complete", "average", "mcquitty", "median", "centroid")
 base_dir = file.path(rootPath, 'results', 'dendrograms', 'readability_clustering')
-generateAndEvaluateClusters(all, metricsToShow, distances, clustMethods, base_dir)  
+generateAndEvaluateClusters(all, metricsToShow, distances, clustMethods, base_dir)
 # See generated figures at results/dendrograms/readability_clustering
 
 
 # Ontology clustering according to the structural accuracy metrics
 metricsToShow = c("Systematic naming", 
                   "Lexically suggest logically define")
-distances = c("euclidean", "correlation", "maximum", "manhattan", "canberra", "minkowski", cosine_wrap)
+distances = c("euclidean", "correlation", "maximum", "manhattan", "canberra", "minkowski", cosine_wrap, spearman_distance_wrap)
 clustMethods = c("ward.D", "single", "complete", "average", "mcquitty", "median", "centroid")
 base_dir = file.path(rootPath, 'results', 'dendrograms', 'structural_accuracy_clustering')
 generateAndEvaluateClusters(all, metricsToShow, distances, clustMethods, base_dir)  
@@ -385,22 +542,17 @@ metricsToShow = c("Names per class",
                   "Systematic naming",
                   "Lexically suggest logically define")
 
-distances = c("euclidean", "correlation", "maximum", "manhattan", "canberra", "minkowski", cosine_wrap)
+distances = c("euclidean", "correlation", "maximum", "manhattan", "canberra", "minkowski", cosine_wrap, spearman_distance_wrap)
 clustMethods = c("ward.D", "single", "complete", "average", "mcquitty", "median", "centroid")
 base_dir = file.path(rootPath, 'results', 'dendrograms', 'metrics_clustering')
 generateAndEvaluateClusters(all, metricsToShow, distances, clustMethods, base_dir, clusterMetrics = T)  
 # See generated figures at results/dendrograms/metrics_clustering
 
 # Metrics correlation plot
-prep_data_info = preprocessData(all, metricsToShow)
+prep_data_info = preprocessData(all, metricsToShow, NA)
 x=prep_data_info$preprocessedData
 x = as.data.frame(as.matrix(t(x)))
 
 # Addrect used for marking four clusters.
 corrplot(cor(t(x)), is.cor=T, tl.col='black', type="full", order="hclust", hclust.method="ward.D",
          col=brewer.pal(n=8, name="RdYlGn"), addrect=4)
-
-
-
-
-
