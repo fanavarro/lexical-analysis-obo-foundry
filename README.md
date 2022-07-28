@@ -1,5 +1,5 @@
 # lexical-analysis-obo-foundry
-Supplementary data for the readability and the structural accuracy analysis of the OBO Foundry ontologies. The ontologies used in this analysis are available at [https://doi.org/10.5281/zenodo.4701571](https://doi.org/10.5281/zenodo.4701571).
+Supplementary data for the readability and the structural accuracy analysis of the OBO Foundry ontologies. The ontologies used in this analysis are available at [https://doi.org/10.5281/zenodo.6363060](https://doi.org/10.5281/zenodo.6363060).
 
 # Description of the files and the folders
 
