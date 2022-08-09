@@ -5,6 +5,7 @@ library(dplyr)
 library(tidyr)
 library(RColorBrewer)
 library(rstudioapi)
+library(gridExtra)
 
 ### FUNCTIONS ###
 plot_metric_distribution <- function(all, metric_names){
@@ -19,6 +20,28 @@ plot_metric_distribution <- function(all, metric_names){
     mtext(paste("Shapiro test p-value", shapiro_p_value), side=3, cex=0.7)
   }
   par(par_opt)
+}
+
+plot_metric_violins <- function(all, metric_names){
+  data = spread(all, Metric, Value)
+  plots = list()
+  for (metric_name in metric_names){
+    x = filter(all, Metric == metric_name)
+    metric_values = x$Value %>% na.exclude()
+    shapiro_p_value = format(shapiro.test(metric_values)$p.value, digits=4)
+    ymax=max(metric_values) + (0.1 * max(metric_values))
+    plot = ggplot(data = x, aes(x=Metric, y=Value)) + geom_violin() + geom_boxplot(width=0.2) + ylim(0, ymax) + labs(x = "") + annotate(geom = 'text', label = paste("Shapiro test p-value =", shapiro_p_value), size=3.5, x = -Inf, y = Inf, hjust = 0, vjust = 1)
+    plots[[metric_name]] = plot
+    #print(plot)
+    #hist(metric_values, main = paste(metric_name, 'distribution'))
+    #boxplot(metric_values, main = paste(metric_name, 'distribution'))
+    #mtext(paste("Shapiro test p-value", shapiro_p_value), side=3, cex=0.7)
+  }
+  #for (plot in plots){
+  #  print(plot[1])
+  #}
+  return(do.call("grid.arrange", c(plots, ncol = 3)))
+  #return(plots)
 }
 
 # Receives the original data in long format and compares candidate and member ontologies
@@ -82,11 +105,13 @@ apply((filter(all, Metric %in% metricsToShow) %>% spread(Metric, Value) %>% sele
 # Complete data
 View(filter(all, Metric %in% metricsToShow) %>% spread(Metric, Value))
 
+# Violin plots
+plot_metric_violins(all, metricsToShow)
+
 # Boxplots
 x = filter(all, Metric %in% metricsToShow)
 x$Metric = factor(x$Metric, levels=metricsToShow)
 ggplot(data = x, aes(x=Metric, y=Value)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust=1))
-
 
 # Comparison between canididate and member ontologies
 compareCandidatesAndMembers(all, metricsToShow)
