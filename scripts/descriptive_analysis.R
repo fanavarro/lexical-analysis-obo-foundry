@@ -30,7 +30,7 @@ plot_metric_violins <- function(all, metric_names){
     metric_values = x$Value %>% na.exclude()
     shapiro_p_value = format(shapiro.test(metric_values)$p.value, digits=4)
     ymax=max(metric_values) + (0.1 * max(metric_values))
-    plot = ggplot(data = x, aes(x=Metric, y=Value)) + geom_violin() + geom_boxplot(width=0.2) + ylim(0, ymax) + labs(x = "") + annotate(geom = 'text', label = paste("Shapiro test p-value =", shapiro_p_value), size=3.5, x = -Inf, y = Inf, hjust = 0, vjust = 1)
+    plot = ggplot(data = x, aes(x=Metric, y=Value)) + geom_violin() + geom_boxplot(width=0.2) + ylim(0, ymax) + labs(x = "") + annotate(geom = 'text', label = paste("Shapiro test p-value =", shapiro_p_value), size=3, x = -Inf, y = Inf, hjust = 0, vjust = 1)
     plots[[metric_name]] = plot
     #print(plot)
     #hist(metric_values, main = paste(metric_name, 'distribution'))
