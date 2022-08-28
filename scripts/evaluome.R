@@ -4,6 +4,7 @@
 
 library(ggridges)
 library(ggplot2)
+library(egg)
 library(dplyr)
 library(tidyr)
 library(rstudioapi)
@@ -85,7 +86,7 @@ kOptTable <- getOptimalKValue(stabilityData, qualityData)
 View(kOptTable)
 
 # Get optimal clusters
-x = annotateClustersByMetric(all, k.range=k.range, bs=bs, seed=seed)
+x = annotateOptimalClustersByMetric(all, k.range=k.range, bs=bs, seed=seed)
 printDensityPlotWithPoints(x, 'Names per class')
 nrow(x[['Names per class']] %>% filter(cluster==1))
 nrow(x[['Names per class']] %>% filter(cluster==2))
@@ -107,25 +108,37 @@ nrow(x[['Lexically suggest logically define']] %>% filter(cluster==1))
 nrow(x[['Lexically suggest logically define']] %>% filter(cluster==2))
 
 # Get metric range for each cluster
-x = getMetricRangeByCluster(all, k.range=k.range, bs=bs, seed=seed)
+x = getMetricOptimalRangeByCluster(all, k.range=k.range, bs=bs, seed=seed)
 View(x)
 
 
+# Get cluster info for k = [2, 5]
+k.range = c(2,5)
+x = annotateClustersByMetric(all, k.range=k.range, bs=bs, seed=seed)
+stability_data = x[['stability_data']]
+quality_data = x[['quality_data']] # TODO: aqui no va por k...
+for (metric in all_metrics){
+  metric_plots = list()
+  for (k in k.range[1]:k.range[2]){
+    aux = na.omit(x[[metric]][[as.character(k)]])
+    aux$cluster = as.character(aux$cluster)
+    plot = ggplot(aux, aes(x = .data[[metric]], y = 1, fill = cluster, point_color = cluster)) +
+      geom_density_ridges(jittered_points = TRUE, size = 0.2, alpha = 0.4, stat = "density_ridges", panel_scaling=F) +
+      theme_ridges() +
+      ylab('Density')
+    metric_plots[[as.character(k)]] = plot
+  }
+  ggarrange(plots = metric_plots)
+}
+View(x[['Synonyms per class']][['3']])
+aux = na.omit(x[['Synonyms per class']][['3']])
+aux$cluster = as.character(aux$cluster)
+ggplot(aux, aes(x = `Synonyms per class`, y = 1, fill = cluster, point_color = cluster)) +
+  geom_density_ridges(jittered_points = TRUE, size = 0.2, alpha = 0.4, stat = "density_ridges", panel_scaling=F) +
+  theme_ridges() +
+  ylab('Density')
 
 
-
-ggplot(na.omit(x[['Synonyms per class']]), aes(x = `Synonyms per class`, y = 1, fill = as.character(cluster))) +
-  geom_density_ridges(jittered_points = TRUE, scale = .95, rel_min_height = .01,
-                      point_shape = "|", point_size = 3, size = 0.25,
-                      position = position_points_jitter(height = 0)) +
-  theme_ridges() + 
-  theme(legend.position = "none")
-
-ggplot(na.omit(x[['Synonyms per class']]), aes(`Synonyms per class`, fill = cluster, colour = cluster)) +
-  geom_density(alpha = 0.1) 
-
-
-points <- tibble(x = na.omit(x[['Synonyms per class']]$`Synonyms per class`), y = 0)
-ggplot(na.omit(x[['Synonyms per class']]), aes(`Synonyms per class`, y=cluster, fill = as.character(cluster), colour = as.character(cluster))) +
-  geom_density(alpha = 0.1) +
-  geom_jitter()
+# Get range information
+x = getMetricRangeByCluster(all, k.range=k.range, bs=bs, seed=seed)
+View(x[['5']])
