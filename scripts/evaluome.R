@@ -120,23 +120,19 @@ quality_data = x[['quality_data']] # TODO: aqui no va por k...
 for (metric in all_metrics){
   metric_plots = list()
   for (k in k.range[1]:k.range[2]){
+    stability_row_name = paste('Mean_stability_k_', k, sep='')
+    stability_k = as.numeric(stability_data %>% filter(Metric == metric) %>% pull(!!sym(stability_row_name)))
     aux = na.omit(x[[metric]][[as.character(k)]])
     aux$cluster = as.character(aux$cluster)
     plot = ggplot(aux, aes(x = .data[[metric]], y = 1, fill = cluster, point_color = cluster)) +
       geom_density_ridges(jittered_points = TRUE, size = 0.2, alpha = 0.4, stat = "density_ridges", panel_scaling=F) +
-      theme_ridges() +
+      theme_ridges() + 
+      annotate(geom = 'text', label = paste('Stability', format(round(stability_k, 3), nsmall = 3)), x = -Inf, y = Inf, hjust = 0, vjust = 1) +
       ylab('Density')
     metric_plots[[as.character(k)]] = plot
   }
   ggarrange(plots = metric_plots)
 }
-View(x[['Synonyms per class']][['3']])
-aux = na.omit(x[['Synonyms per class']][['3']])
-aux$cluster = as.character(aux$cluster)
-ggplot(aux, aes(x = `Synonyms per class`, y = 1, fill = cluster, point_color = cluster)) +
-  geom_density_ridges(jittered_points = TRUE, size = 0.2, alpha = 0.4, stat = "density_ridges", panel_scaling=F) +
-  theme_ridges() +
-  ylab('Density')
 
 
 # Get range information
