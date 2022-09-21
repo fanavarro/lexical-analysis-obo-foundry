@@ -10,6 +10,13 @@ library(tidyr)
 library(rstudioapi)
 library(evaluomeR)
 library(tools)
+library(factoextra)
+
+jaccard <- function(a, b) {
+  intersection = length(intersect(a, b))
+  union = length(a) + length(b) - intersection
+  return (intersection/union)
+}
 
 printRidgelinePlot <- function(data, metric) {
   ggplot(na.omit(data[[metric]]), aes(x = .data[[metric]], y = 1, fill = as.character(cluster))) +
@@ -137,4 +144,38 @@ for (metric in all_metrics){
 
 # Get range information
 x = getMetricRangeByCluster(all, k.range=k.range, bs=bs, seed=seed)
-View(x[['5']])
+View(x[['3']])
+
+library("gridExtra")
+pdf("/home/fabad/imprimir/k2.pdf")
+grid.table(x[['2']], rows = NULL)
+dev.off()
+
+pdf("/home/fabad/imprimir/k3.pdf")
+grid.table(x[['3']], rows = NULL)
+dev.off()
+
+pdf("/home/fabad/imprimir/k4.pdf")
+grid.table(x[['4']], rows = NULL)
+dev.off()
+
+pdf("/home/fabad/imprimir/k5.pdf")
+grid.table(x[['5']], rows = NULL)
+dev.off()
+
+
+# Cluster ontologies by using lsld and systematic naming as features
+x = all %>% select(Ontology, `Lexically suggest logically define`, `Systematic naming`) %>% na.omit()
+rownames(x) = x$Ontology
+x$Ontology = NULL
+k2 = kmeans(x, 2)
+k3 = kmeans(x, 3)
+k4 = kmeans(x, 4)
+k5 = kmeans(x, 5)
+
+fviz_cluster(k2, data = x, stand=FALSE)
+fviz_cluster(k3, data = x, stand=FALSE)
+fviz_cluster(k4, data = x, stand=FALSE)
+fviz_cluster(k5, data = x, stand=FALSE)
+
+View(x)

@@ -77,6 +77,7 @@ compareCandidatesAndMembers <- function(all, metricsToCompare){
 rootPath = dirname(dirname(rstudioapi::getActiveDocumentContext()$path))
 candidateResultsPath = file.path(rootPath, 'results', 'candidates_results', 'allMetrics.tsv')
 memberResultsPath = file.path(rootPath, 'results', 'members_results', 'allMetrics.tsv')
+detailedFilesPath = file.path(rootPath, 'results', 'detailed_files')
 
 # Read source files and compose the dataset to be analysed
 candidates = read.csv2(candidateResultsPath, header = T, sep = "\t", na.strings = "NaN", stringsAsFactors = F)
@@ -115,3 +116,4 @@ ggplot(data = x, aes(x=Metric, y=Value)) + geom_boxplot() + theme(axis.text.x = 
 
 # Comparison between canididate and member ontologies
 compareCandidatesAndMembers(all, metricsToShow)
+
