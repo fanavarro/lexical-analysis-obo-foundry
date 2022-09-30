@@ -78,6 +78,7 @@ sum(correlation_data$`LR classes`) == nrow(systematic_naming_total)
 # For each ontology, the correlation between the number of transitive subclasses
 # of an LR class and its systematic naming value
 View(correlation_data)
+write.csv(correlation_data, file = file.path(rootPath, 'results', 'systematic_naming_correlation_subclass.csv'), row.names = FALSE)
 # Number of ontologies with a significant negative correlation
 nrow(filter(correlation_data, `p-value` < 0.05 & `Spearman correlation` < 0))
 nrow(filter(correlation_data, `p-value` < 0.05 & `Spearman correlation` >= 0))
@@ -85,8 +86,9 @@ nrow(filter(correlation_data, `p-value` < 0.05 ))
 #print(xtable(correlation_data, digits = c(0,0,0,3,4)), include.rownames=FALSE)
 
 # Correlation by using all LR classes in the repository
+cor_test = cor.test(x=systematic_naming_total$transitiveChildren, y=systematic_naming_total$Metric.Value, method = "spearman", use="complete.obs")
 model = lm(systematic_naming_total$Metric.Value ~ systematic_naming_total$transitiveChildren)
 plot(systematic_naming_total$transitiveChildren, systematic_naming_total$Metric.Value, ylab = "Systematic Naming value", xlab = "Transitive subclasses")
 abline(model)
+text(170000, 0.95, paste('Spearman correlation = ', format(round(cor_test$estimate[["rho"]], 3), nsmall = 3), '\np-value = ', format(cor_test$p.value, scientific=T), sep = ''))
 
-cor.test(x=systematic_naming_total$transitiveChildren, y=systematic_naming_total$Metric.Value, method = "spearman", use="complete.obs")
