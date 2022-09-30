@@ -6,6 +6,7 @@ library(tidyr)
 library(RColorBrewer)
 library(rstudioapi)
 library(gridExtra)
+library(ggpubr)
 
 ### FUNCTIONS ###
 plot_metric_distribution <- function(all, metric_names){
@@ -117,3 +118,10 @@ ggplot(data = x, aes(x=Metric, y=Value)) + geom_boxplot() + theme(axis.text.x = 
 # Comparison between canididate and member ontologies
 compareCandidatesAndMembers(all, metricsToShow)
 
+# Comparison between names per class and descriptions per class
+metricsToShow = c("Names per class",
+                  "Descriptions per class")
+comparisons = list(c("Names per class", "Descriptions per class"))
+x = filter(all, Metric %in% metricsToShow)
+x$Metric = factor(x$Metric, levels=metricsToShow)
+ggplot(data = x, aes(x=Metric, y=Value)) + geom_boxplot() + stat_compare_means(comparisons = comparisons)

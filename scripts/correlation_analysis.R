@@ -1,5 +1,6 @@
 library(stringr)
 library(rstudioapi)
+library(dplyr)
 
 ### FUNCTIONS ###
 
@@ -32,7 +33,7 @@ metricsToShow = c("Names per class",
 # Test whether the number of transitive sub-classes of an LR classis correlated 
 # with the systematic naming metric value
 
-cor.test(x=exampleSystematicNaming$transitiveChildren, y=exampleSystematicNaming$Metric.Value, method = "spearman", use="complete.obs")
+#cor.test(x=exampleSystematicNaming$transitiveChildren, y=exampleSystematicNaming$Metric.Value, method = "spearman", use="complete.obs")
 column_ontology = c()
 column_number_of_lr_classes = c()
 column_rho = c()
@@ -71,11 +72,17 @@ for (systematic_naming_name in systematic_naming_file_list){
 }
 correlation_data = data.frame(column_ontology, column_number_of_lr_classes, column_rho, column_p_value)
 colnames(correlation_data) = c('Ontology', 'LR classes', 'Spearman correlation', 'p-value')
+correlation_data = correlation_data[order(correlation_data$Ontology),]
 sum(correlation_data$`LR classes`) == nrow(systematic_naming_total)
 
 # For each ontology, the correlation between the number of transitive subclasses
 # of an LR class and its systematic naming value
 View(correlation_data)
+# Number of ontologies with a significant negative correlation
+nrow(filter(correlation_data, `p-value` < 0.05 & `Spearman correlation` < 0))
+nrow(filter(correlation_data, `p-value` < 0.05 & `Spearman correlation` >= 0))
+nrow(filter(correlation_data, `p-value` < 0.05 ))
+#print(xtable(correlation_data, digits = c(0,0,0,3,4)), include.rownames=FALSE)
 
 # Correlation by using all LR classes in the repository
 model = lm(systematic_naming_total$Metric.Value ~ systematic_naming_total$transitiveChildren)
