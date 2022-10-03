@@ -79,6 +79,26 @@ printDensityPlotWithPoints <- function(data, metric) {
     ylab('Density')
 }
 
+printDensityPlotWithPointsAndInfo <- function(data, metric, k, stability_data, quality_data, metric_ranges){
+  stability_row_name = paste('Mean_stability_k_', k, sep='')
+  stability_k = as.numeric(stability_data %>% filter(Metric == metric_name) %>% pull(!!sym(stability_row_name)))
+  quality_col_name = paste('k_', k, sep = '')
+  quality_k = as.data.frame(assay(quality_data[[quality_col_name]])) %>% filter(Metric == metric_name) %>% pull(Avg_Silhouette_Width) %>% as.numeric()
+  annotationText = paste('Stability = ', format(round(stability_k, 3), nsmall = 3), '-', getStabilityInterpretation(stability_k), '\nQuality = ', format(round(quality_k, 3), nsmall = 3), '-', getQualityInterpretation(quality_k))
+  aux = na.omit(x[[metric_name]][[as.character(k)]])
+  aux$cluster = as.character(aux$cluster)
+  # points to draw vertical lines
+  cutpoints = c(metric_ranges[[as.character(k)]] %>% filter(metric==metric_name) %>% pull(min_value), metric_ranges[[as.character(k)]] %>% filter(metric==metric_name) %>% pull(max_value))
+  plot = ggplot(aux, aes(x = .data[[metric_name]], y = 1, fill = cluster, point_color = cluster)) +
+    geom_density_ridges(jittered_points = TRUE, size = 0.2, alpha = 0.4, stat = "density_ridges", panel_scaling=F) +
+    theme_ridges() + 
+    annotate(geom = 'text', label = annotationText, x = -Inf, y = Inf, hjust = 0, vjust = 1) +
+    ylab('Density') +
+    geom_vline(xintercept = cutpoints, linetype="dotted") +
+    scale_x_continuous(labels=cutpoints, breaks=cutpoints, guide = guide_axis(check.overlap = T, angle = 90))
+  return(plot)
+}
+
 # Get data paths
 rootPath = dirname(dirname(rstudioapi::getActiveDocumentContext()$path))
 candidateResultsPath = file.path(rootPath, 'results', 'candidates_results', 'allMetrics.tsv')
@@ -155,49 +175,32 @@ metric_ranges = getMetricRangeByCluster(all, k.range=k.range, bs=bs, seed=seed)
 for (metric_name in all_metrics){
   metric_plots = list()
   for (k in k.range[1]:k.range[2]){
-    stability_row_name = paste('Mean_stability_k_', k, sep='')
-    stability_k = as.numeric(stability_data %>% filter(Metric == metric_name) %>% pull(!!sym(stability_row_name)))
-    quality_col_name = paste('k_', k, sep = '')
-    quality_k = as.data.frame(assay(quality_data[[quality_col_name]])) %>% filter(Metric == metric_name) %>% pull(Avg_Silhouette_Width) %>% as.numeric()
-    annotationText = paste('Stability = ', format(round(stability_k, 3), nsmall = 3), '-', getStabilityInterpretation(stability_k), '\nQuality = ', format(round(quality_k, 3), nsmall = 3), '-', getQualityInterpretation(quality_k))
-    aux = na.omit(x[[metric_name]][[as.character(k)]])
-    aux$cluster = as.character(aux$cluster)
-    # points to draw vertical lines
-    cutpoints = c(metric_ranges[[as.character(k)]] %>% filter(metric==metric_name) %>% pull(min_value), metric_ranges[[as.character(k)]] %>% filter(metric==metric_name) %>% pull(max_value))
-    #cat(paste('metric =', metric,'k =',k,'cutpoints =', cutpoints, "\n"))
-    plot = ggplot(aux, aes(x = .data[[metric_name]], y = 1, fill = cluster, point_color = cluster)) +
-      geom_density_ridges(jittered_points = TRUE, size = 0.2, alpha = 0.4, stat = "density_ridges", panel_scaling=F) +
-      theme_ridges() + 
-      annotate(geom = 'text', label = annotationText, x = -Inf, y = Inf, hjust = 0, vjust = 1) +
-      ylab('Density') +
-      geom_vline(xintercept = cutpoints, linetype="dotted") +
-      scale_x_continuous(labels=cutpoints, breaks=cutpoints, guide = guide_axis(check.overlap = T, angle = 90))
+    plot = printDensityPlotWithPointsAndInfo(x, metric, k, stability_data, quality_data, metric_ranges)
     metric_plots[[as.character(k)]] = plot
   }
   ggarrange(plots = metric_plots)
 }
 
+# Print k=2 for each metric with quality and stability information
+k = 2
+for (metric_name in all_metrics){
+  print(printDensityPlotWithPointsAndInfo(x, metric, k, stability_data, quality_data, metric_ranges))
+}
+
+# Print only k = 4 for names per class
+k = 4
+metric_name = 'Names per class'
+printDensityPlotWithPointsAndInfo(x, metric, k, stability_data, quality_data, metric_ranges)
+
+nrow(filter(x$`Names per class`$`4`, cluster == "1"))
+nrow(filter(x$`Names per class`$`4`, cluster == "2"))
+nrow(filter(x$`Names per class`$`4`, cluster == "3"))
+nrow(filter(x$`Names per class`$`4`, cluster == "4"))
 
 # Get range information
 x = getMetricRangeByCluster(all, k.range=k.range, bs=bs, seed=seed)
 View(x[['3']])
 
-library("gridExtra")
-pdf("/home/fabad/imprimir/k2.pdf")
-grid.table(x[['2']], rows = NULL)
-dev.off()
-
-pdf("/home/fabad/imprimir/k3.pdf")
-grid.table(x[['3']], rows = NULL)
-dev.off()
-
-pdf("/home/fabad/imprimir/k4.pdf")
-grid.table(x[['4']], rows = NULL)
-dev.off()
-
-pdf("/home/fabad/imprimir/k5.pdf")
-grid.table(x[['5']], rows = NULL)
-dev.off()
 
 
 # Cluster ontologies by using lsld and systematic naming as features
@@ -221,19 +224,17 @@ fviz_cluster(k5, data = x, stand=FALSE)
 # Optimal number of clusters according to the silhouette
 fviz_nbclust(x, kmeans, method = "silhouette")
 
-# Stability
-a = clusterbootWrapper(data=x[c("Lexically suggest logically define", "Systematic naming")], B=bs,
-                       bootmethod="boot",
-                       cbi="kmeans",
-                       krange=2, seed=seed)
-a$bootmean
-mean(a$bootmean)
 
 
 
-# Metric correlation
-cor.test(x=all$`Systematic naming`, y=all$`Lexically suggest logically define`, method = "spearman", use="complete.obs")
+# LSLD and systematic naming metrics correlation
+cor_test = cor.test(x=all$`Systematic naming`, y=all$`Lexically suggest logically define`, method = "spearman", use="complete.obs")
+model = lm(all$`Systematic naming` ~ all$`Lexically suggest logically define`)
+plot(y=all$`Systematic naming`, x=all$`Lexically suggest logically define`, ylab = "Systematic Naming value", xlab = "LSLD value")
+abline(model)
+text(0.25, 0.95, paste('Spearman correlation = ', format(round(cor_test$estimate[["rho"]], 3), nsmall = 3), '\np-value = ', format(cor_test$p.value, scientific=T), sep = ''))
 
+# General metric correlation
 corrplot(cor(x), is.cor=T, tl.col='black', type="full", order="hclust", hclust.method="ward.D",
          col=brewer.pal(n=8, name="RdYlGn"))
 
