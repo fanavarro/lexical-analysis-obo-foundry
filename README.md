@@ -10,13 +10,15 @@ Supplementary data for the readability and the structural accuracy analysis of t
     - **metrics.jar**: Command line based java application to obtain the readability and the structural accuracy metrics for a set of ontologies. The source code is available [here](https://github.com/fanavarro/ontology-metrics).
     - **getMetricsMembers.sh**: Bash script to obtain the metrics for the OBO Foundry member ontologies. This script read the folder */data/ontologies/member_ontologies* and put the results in */results/members_results*.
     - **getMetricsMembers.sh**: Bash script to obtain the metrics for the OBO Foundry candidate ontologies. This script read the folder */data/ontologies/candidate_ontologies* and put the results in */results/candidates_results*.
-    - **data_analysis.R**: R script intended to be open in an interactive rstudio session. It contains the R commands used to perform the statistical and clusering analysis, including commented lines that help to follow the script.
+    - **descriptive_analysis.R**: R script intended to be opened in an interactive rstudio session. It contains the R commands used to perform the descriptive analysis, including basic statistics and plots. It also includes commented lines that help to follow the script.
+    - **evaluome.R**: R script that performs a metric analysis by using evaluome library, among others. This includes a clustering analysis to find optimal metric partitions. The script is intended to be opened in an interactive rstudio session.
+    - **correlation_analysis.R**: R script that performs a correlation analysis between the systematic naming value of the lexical regularity classes and their number of transitive subclasses. The script is intended to be opened in an interactive rstudio session.
 
-- The **results** folder contains subfolders with the results provided by each step, namely:
+- The **results** folder contains several subfolders and files with the results provided by each step, namely:
     - **candidates_results**: Folder including TSV files for each candidate ontology, including its metric values. A file called *allMetrics.tsv* is also included, in which the information about all the candidate ontologies is merged.
     - **members_results**: Folder including TSV files for each member ontology, including its metric values. A file called *allMetrics.tsv* is also included, in which the information about all the member ontologies is merged.
     - **detailed_files**: Folder including detailed files for each (ontology, metric) pair, including extra information at entity level.
-    - **dendrograms**: Folder including the dendrograms obtained by the clustering analysis. In the case of the ontology clustering according the readability or the structural accuracy metrics, extra figures evaluating each cluster are provided.
+    - **systematic_naming_correlation_subclass.csv**: File with the results of the correlation analysis between the number of transitive subclasses of a lexical regularity class and its score for the systematic naming metric. This is a CSV file indicating, for each evaluated ontology, its number of lexical regularity classes, the Spearman correlation obtained between the number of transitive subclasses of a lexical regularity class and its score for the systematic naming metric, and the corresponding p-value indicating the significance.
 
 # How to reproduce the results
 
@@ -24,24 +26,23 @@ Supplementary data for the readability and the structural accuracy analysis of t
 - UNIX based system (tested on Ubuntu 14.04.6 LTS)
 - Git
 - Java (tested on openjdk 11.0.11)
-- R (tested on version 3.6.3)
-- RStudio (tested on version 1.1.453)
+- R (tested on version 4.2.1)
+- RStudio (tested on version 2022.07.1+554 "Spotted Wakerobin")
 - R libraries:
-    - ggplot2 (tested on version 3.3.4)
-    - tools (tested on version 3.6.3)
+    - corrplot (tested on version 0.92)
+    - dplyr (tested on version 1.0.10)
+    - egg (tested on version 0.4.5)
+    - evaluomeR (tested on version 1.7.8)
+    - factoextra (tested on version 1.0.7)
+    - ggplot2 (tested on version 3.3.6)
     - ggpubr (tested on version 0.4.0)
-    - stringr (tested on version 1.4.0)
-    - dplyr (tested on version 1.0.7)
-    - tidyr (tested on version 1.0.2)
-    - pvclust (tested on version 2.2-0)
-    - caret (tested on version 6.0-88)
-    - philentropy (tested on version 0.5.0)
-    - parallel (tested on version 3.6.3)
-    - doParallel (tested on version 1.0.15)
-    - outforest (tested on version 0.1.1)
-    - corrplot (tested on version 0.84)
-    - RColorBrewer (tested on version 1.1-2)
-    - rstudioapi (tested on version 0.11)
+    - ggridges (tested on version 0.5.3)
+    - gridExtra (tested on version 2.3)
+    - RColorBrewer (tested on version )
+    - rstudioapi (tested on version 1.1-3)
+    - stringr (tested on version 1.4.1)
+    - tidyr (tested on version 1.2.1)
+    - tools (tested on version 4.2.1)
 
 
 ## Get the repository
@@ -113,4 +114,4 @@ Once the above commands are executed, your results folder will contain a three f
 - *detailed_files*: Set of TSV files including a more detailed information about each ontology-metric pair.
 
 ## Perform analysis
-The statistical analysis was performed by using the rstudio software. In order to reproduce it, open rstudio and load the file [data_analysis.R](./scripts/data_analysis.R). Then, you can execute it line by line in an interactive way. Furthermore, this file includes comments to clarify each section.
+The descriptive analysis, the metric partition analysis and the correlation analysis were performed by using the rstudio software. In order to reproduce them, open rstudio and load the corresponding file ([descriptive_analysis.R](./scripts/descriptive_analysis.R) for the descriptive analysis; [evaluome.R](./scripts/evaluome.R) for the metric partition analysis, or [correlation_analysis.R](./scripts/correlation_analysis.R), for the correlation analysis). Then, you can execute any of them line by line in an interactive way. Furthermore, these files include comments to clarify each section.

@@ -9,6 +9,9 @@ library(gridExtra)
 library(ggpubr)
 
 ### FUNCTIONS ###
+
+# Receives the original data in long format and a list of metric names, and plots
+# the metric distribution by using density plots.
 plot_metric_distribution <- function(all, metric_names){
   par_opt = par(mfrow=c(3,2))
   data = spread(all, Metric, Value)
@@ -16,13 +19,13 @@ plot_metric_distribution <- function(all, metric_names){
     metric_values = data %>% pull(metric_name) %>% na.exclude()
     shapiro_p_value = format(shapiro.test(metric_values)$p.value, digits=4)
     plot(density(metric_values), main = paste(metric_name, 'distribution'))
-    #hist(metric_values, main = paste(metric_name, 'distribution'))
-    #boxplot(metric_values, main = paste(metric_name, 'distribution'))
     mtext(paste("Shapiro test p-value", shapiro_p_value), side=3, cex=0.7)
   }
   par(par_opt)
 }
 
+# Receives the original data in long format and a list of metric names, and plots
+# the metric distribution by using violin plots.
 plot_metric_violins <- function(all, metric_names){
   data = spread(all, Metric, Value)
   plots = list()
@@ -33,16 +36,8 @@ plot_metric_violins <- function(all, metric_names){
     ymax=max(metric_values) + (0.1 * max(metric_values))
     plot = ggplot(data = x, aes(x=Metric, y=Value)) + geom_violin() + geom_boxplot(width=0.2) + ylim(0, ymax) + labs(x = "") + annotate(geom = 'text', label = paste("Shapiro test p-value =", shapiro_p_value), size=3, x = -Inf, y = Inf, hjust = 0, vjust = 1)
     plots[[metric_name]] = plot
-    #print(plot)
-    #hist(metric_values, main = paste(metric_name, 'distribution'))
-    #boxplot(metric_values, main = paste(metric_name, 'distribution'))
-    #mtext(paste("Shapiro test p-value", shapiro_p_value), side=3, cex=0.7)
   }
-  #for (plot in plots){
-  #  print(plot[1])
-  #}
   return(do.call("grid.arrange", c(plots, ncol = 3)))
-  #return(plots)
 }
 
 # Receives the original data in long format and compares candidate and member ontologies
@@ -90,7 +85,6 @@ all$Value = as.numeric(all$Value)
 all$File = as.character(all$File)
 
 ### DESCRIPTIVE ANALYSIS ###
-
 metricsToShow = c("Names per class", 
                   "Synonyms per class", 
                   "Descriptions per class", 

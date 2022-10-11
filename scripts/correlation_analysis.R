@@ -21,19 +21,8 @@ all$Value = as.numeric(all$Value)
 all$File = as.character(all$File)
 
 ### CORRELATION ANALYSIS ###
-
-metricsToShow = c("Names per class", 
-                  "Synonyms per class", 
-                  "Descriptions per class", 
-                  "Systematic naming",
-                  "Lexically suggest logically define")
-
-
-
-# Test whether the number of transitive sub-classes of an LR classis correlated 
+# Test whether the number of transitive sub-classes of an LR class is correlated 
 # with the systematic naming metric value
-
-#cor.test(x=exampleSystematicNaming$transitiveChildren, y=exampleSystematicNaming$Metric.Value, method = "spearman", use="complete.obs")
 column_ontology = c()
 column_number_of_lr_classes = c()
 column_rho = c()
@@ -41,6 +30,12 @@ column_p_value = c()
 
 systematic_naming_total = NULL # This stores all LR classes from obo foundry
 
+# For each ontology evaluated by the systematic naming metric, we obtain a plot
+# depicting the correlation between the systematic naming value with the number
+# of transitive subclasses of the lexical regularity classes.
+
+# Additionally, we create a big table with the data of all ontologies in order
+# to perform a global correlation analysis later.
 systematic_naming_file_list = list.files(path = detailedFilesPath, pattern = '.*_Systematic_naming.tsv')
 for (systematic_naming_name in systematic_naming_file_list){
   ontology = str_split(systematic_naming_name, '\\.')[[1]][1]
@@ -79,11 +74,12 @@ sum(correlation_data$`LR classes`) == nrow(systematic_naming_total)
 # of an LR class and its systematic naming value
 View(correlation_data)
 write.csv(correlation_data, file = file.path(rootPath, 'results', 'systematic_naming_correlation_subclass.csv'), row.names = FALSE)
+
 # Number of ontologies with a significant negative correlation
 nrow(filter(correlation_data, `p-value` < 0.05 & `Spearman correlation` < 0))
+
+# Number of ontologies with a significant positive or null correlation
 nrow(filter(correlation_data, `p-value` < 0.05 & `Spearman correlation` >= 0))
-nrow(filter(correlation_data, `p-value` < 0.05 ))
-#print(xtable(correlation_data, digits = c(0,0,0,3,4)), include.rownames=FALSE)
 
 # Correlation by using all LR classes in the repository
 cor_test = cor.test(x=systematic_naming_total$transitiveChildren, y=systematic_naming_total$Metric.Value, method = "spearman", use="complete.obs")

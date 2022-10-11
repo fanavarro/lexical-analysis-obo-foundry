@@ -1,6 +1,5 @@
-#library(devtools)
-#install_github("fanavarro/evaluomeR")
-#install_github("neobernad/evaluomeR", ref="feature_request")
+library(devtools)
+install_github("fanavarro/evaluomeR")
 #install_github("neobernad/evaluomeR")
 
 library(ggridges)
@@ -45,31 +44,8 @@ getQualityInterpretation <- function(x) {
   }
 }
 
-printRidgelinePlot <- function(data, metric) {
-  ggplot(na.omit(data[[metric]]), aes(x = .data[[metric]], y = 1, fill = as.character(cluster))) +
-    geom_density_ridges(jittered_points = TRUE, alpha = 0.4) +
-    theme_ridges() + 
-    theme(legend.position = "none")
-}
-
-printDensityPlotWithBars <- function(data, metric) {
-  aux = na.omit(data[[metric]])
-  aux$cluster = as.character(aux$cluster)
-  ggplot(aux, aes(x = .data[[metric]], y = 1, fill = cluster,  point_color = cluster)) +
-    geom_density_ridges(jittered_points = TRUE,
-                         stat = "density_ridges",
-                         alpha = 0.4, 
-                         point_shape = "|", 
-                         scale = .95, 
-                         rel_min_height = .01, 
-                         point_size = 5,
-                         size = 0.2,
-                        panel_scaling=F,
-                         position = position_points_jitter(height = 0)) +
-    theme_ridges() +
-    ylab('Density')
-}
-
+# Receives the data and the name of a metric and prints a density plot, including
+# each individual as a point.
 printDensityPlotWithPoints <- function(data, metric) {
   aux = na.omit(data[[metric]])
   aux$cluster = as.character(aux$cluster)
@@ -79,6 +55,8 @@ printDensityPlotWithPoints <- function(data, metric) {
     ylab('Density')
 }
 
+# Receives the data, the name of a metric, a value of k, the stability data,
+# the quality data and the metric ranges, and makes a plot including these data.
 printDensityPlotWithPointsAndInfo <- function(data, metric, k, stability_data, quality_data, metric_ranges){
   stability_row_name = paste('Mean_stability_k_', k, sep='')
   stability_k = as.numeric(stability_data %>% filter(Metric == metric_name) %>% pull(!!sym(stability_row_name)))
@@ -125,12 +103,12 @@ all$File = tools::file_path_sans_ext(all$File)
 all = all %>% dplyr::rename(Ontology = File)
 all = select(all, -Member)
 
-# Evaluome params
+# Evaluome params for looking the optimal k of each metric.
 k.range = c(2,11)
 bs = 20
 seed = 100
 
-# Get statistics on optimal k value
+# Get statistics about the optimal k value
 stability_data <- stabilityRange(data=all, k.range=k.range, 
                                 bs=bs, getImages = FALSE, seed=seed)
 quality_data <- qualityRange(data=all, k.range=k.range,
@@ -141,23 +119,30 @@ View(kOptTable)
 
 # Get optimal clusters
 x = annotateOptimalClustersByMetric(all, k.range=k.range, bs=bs, seed=seed)
+
+# Print information about optimal clusters
 printDensityPlotWithPoints(x, 'Names per class')
+# Size of the clusters
 nrow(x[['Names per class']] %>% filter(cluster==1))
 nrow(x[['Names per class']] %>% filter(cluster==2))
 
 printDensityPlotWithPoints(x, 'Synonyms per class')
+# Size of the clusters
 nrow(x[['Synonyms per class']] %>% filter(cluster==1))
 nrow(x[['Synonyms per class']] %>% filter(cluster==2))
 
 printDensityPlotWithPoints(x, 'Descriptions per class')
+# Size of the clusters
 nrow(x[['Descriptions per class']] %>% filter(cluster==1))
 nrow(x[['Descriptions per class']] %>% filter(cluster==2))
 
 printDensityPlotWithPoints(x, 'Systematic naming')
+# Size of the clusters
 nrow(x[['Systematic naming']] %>% filter(cluster==1))
 nrow(x[['Systematic naming']] %>% filter(cluster==2))
 
 printDensityPlotWithPoints(x, 'Lexically suggest logically define')
+# Size of the clusters
 nrow(x[['Lexically suggest logically define']] %>% filter(cluster==1))
 nrow(x[['Lexically suggest logically define']] %>% filter(cluster==2))
 
@@ -166,7 +151,8 @@ x = getMetricOptimalRangeByCluster(all, k.range=k.range, bs=bs, seed=seed)
 View(x)
 
 
-# Get cluster info for k = [2, 5]
+# Get cluster info for k = [2, 5], and print density plots for each k
+# and for each metric
 k.range = c(2,5)
 x = annotateClustersByMetric(all, k.range=k.range, bs=bs, seed=seed)
 stability_data = as.data.frame(assay(x[['stability_data']]))
@@ -199,6 +185,7 @@ nrow(filter(x$`Names per class`$`4`, cluster == "4"))
 
 # Get range information
 x = getMetricRangeByCluster(all, k.range=k.range, bs=bs, seed=seed)
+# e.g. see clusters for k=3
 View(x[['3']])
 
 
