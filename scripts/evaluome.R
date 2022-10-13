@@ -161,7 +161,7 @@ metric_ranges = getMetricRangeByCluster(all, k.range=k.range, bs=bs, seed=seed)
 for (metric_name in all_metrics){
   metric_plots = list()
   for (k in k.range[1]:k.range[2]){
-    plot = printDensityPlotWithPointsAndInfo(x, metric, k, stability_data, quality_data, metric_ranges)
+    plot = printDensityPlotWithPointsAndInfo(x, metric_name, k, stability_data, quality_data, metric_ranges)
     metric_plots[[as.character(k)]] = plot
   }
   ggarrange(plots = metric_plots)
@@ -169,9 +169,14 @@ for (metric_name in all_metrics){
 
 # Print k=2 for each metric with quality and stability information
 k = 2
-for (metric_name in all_metrics){
-  print(printDensityPlotWithPointsAndInfo(x, metric, k, stability_data, quality_data, metric_ranges))
+metric_plots = list()
+metric_names = c("Names per class", "Systematic naming", "Lexically suggest logically define", "Descriptions per class", "Synonyms per class")
+for (i in 1:length(metric_names)){
+  metric_name = metric_names[i]
+  plot = printDensityPlotWithPointsAndInfo(x, metric_name, k, stability_data, quality_data, metric_ranges) + labs(title=LETTERS[i])
+  metric_plots[[metric_name]] = plot
 }
+ggarrange(plots = metric_plots)
 
 # Print only k = 4 for names per class
 k = 4
