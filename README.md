@@ -3,7 +3,7 @@ Supplementary data for the readability and the structural accuracy analysis of t
 
 # Description of the files and the folders
 
-- The **data** folder initially contains the several files with links to download both the member and the candidate OBO Foundry ontologies.
+- The **data** folder initially contains the several files with links to download both the member and the candidate OBO Foundry ontologies. Additionally, a csv table including both the acronym and the complete title of the OBO Foundry ontologies has been included.
 
 - The **scripts** folder contains the following scripts:
     - **get_ontologies.sh**: Bash script to download the latest version of the OBO Foundry ontologies into the *data/ontologies* folder.
